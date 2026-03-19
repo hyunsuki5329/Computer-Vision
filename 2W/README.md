@@ -1,13 +1,13 @@
-📸 1. 카메라 캘리브레이션 및 왜곡 보정(Camera Calibration)
-OpenCV를 활용하여 체크보드 패턴으로부터 카메라의 내부 파라미터(Intrinsic Parameters)와 왜곡 계수(Distortion Coefficients)를 추출하고, 이를 통해 렌즈 왜곡이 발생한 이미지를 보정하는 실습 과제입니다.
-1. 과제 개요
-대부분의 카메라는 렌즈의 특성상 물리적인 왜곡(특히 주변부가 휘어지는 왜곡)을 가지고 있습니다. 이를 수학적으로 해결하기 위해 체크보드 패턴을 사용하여 카메라의 특성을 파악(Calibration)하고, 왜곡되지 않은 직선 이미지로 복원하는 것이 목적입니다.
-2. 주요 기능
-• 체크보드 코너 검출: cv2.findChessboardCorners를 사용하여 9x6 크기의 내부 코너를 자동으로 탐색합니다.
-• 좌표 정밀화 (Sub-pixel Accuracy): cv2.cornerSubPix를 적용하여 픽셀 단위보다 더 정밀한 코너 위치를 계산합니다.
-• 카메라 캘리브레이션: 3D 월드 좌표와 2D 이미지 좌표를 매핑하여 카메라 행렬($K$)과 왜곡 계수($dist$)를 산출합니다.
-• 이미지 왜곡 보정: cv2.undistort와 getOptimalNewCameraMatrix를 사용하여 렌즈 왜곡을 제거합니다.
-3. 전체코드
+# 1. 체크보드 기반 카메라 캘리브레이션 및 왜곡 보정
+
+- 체크보드 이미지들에서 코너를 검출해 2D/3D 대응점을 구성
+- cv2.calibrateCamera로 카메라 내부 행렬과 왜곡 계수 계산
+- cv2.undistort로 왜곡을 보정하고 결과를 시각화/저장
+- 원본 대비 보정 결과를 한 화면에서 비교
+
+<details>
+    <summary>전체 코드</summary>
+
 ```python
 import cv2
 import numpy as np
@@ -117,19 +117,58 @@ print("\n왜곡 보정 완료! 'calibration_result.jpg'로 저장되었습니다
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 ```
-4. 결과
-![alt text](img1.png)
 
-🌀 2. 이미지 기하학적 변환 (Affine Transformation)
-OpenCV의 아핀 변환(Affine Transformation) 기술을 사용하여 이미지에 회전, 크기 조절, 평행이동을 동시에 적용하는 실습 과제입니다. 여러 개의 변환을 하나의 행렬로 통합하여 효율적으로 이미지를 처리하는 방법을 학습합니다.
-1. 과제 개요
-단순한 이미지 편집을 넘어, 수학적인 변환 행렬(2 x 3 Matrix)을 조작하여 이미지를 원하는 위치와 각도로 재배치하는 것이 목적입니다. 각 변환(Rotation, Scaling, Translation)의 원리를 이해하고 이를 하나의 아핀 행렬에 합성하는 과정을 수행합니다.
-2. 주요 요구사항
-• 회전(Rotation): 이미지의 중심점을 기준으로 반시계 방향으로 30도 회전합니다.
-• 크기 조절(Scaling): 회전과 동시에 원본 이미지 크기의 0.8배로 축소합니다.
-• 평행이동(Translation): 변환된 결과를 x축으로 +80px, y축으로 -40px만큼 이동시킵니다.
-• 행렬 조작: 별도의 함수를 여러 번 쓰지 않고, 하나의 변환 행렬 $M$의 요소를 직접 수정하여 모든 변환을 단 한번의 연산(warpAffine)으로 처리합니다.
-3. 전체 코드
+</details>
+
+## 1) 체크보드 코너 검출과 정밀화
+
+체크보드 내부 코너를 검출하고, cornerSubPix로 코너 위치를 서브픽셀 단위로 보정합니다.
+이 좌표쌍이 캘리브레이션의 핵심 입력 데이터가 됩니다.
+
+```python
+ret, corners = cv2.findChessboardCorners(gray, CHECKERBOARD, None)  # 초기 코너 검출
+if ret == True:
+    corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)  # 정밀화
+    objpoints.append(objp)      # 3D 실제 좌표
+    imgpoints.append(corners2)  # 2D 이미지 좌표
+```
+
+## 2) 카메라 행렬과 왜곡 계수 계산
+
+3D-2D 대응점 리스트를 이용해 카메라 내부 파라미터를 추정합니다.
+여기서 계산된 K, dist는 이후 왜곡 보정 단계에서 사용됩니다.
+
+```python
+ret, K, dist, rvecs, tvecs = cv2.calibrateCamera(
+    objpoints, imgpoints, img_size, None, None
+)  # 내부 행렬 K, 왜곡 계수 dist 계산
+```
+
+## 3) 왜곡 보정 후 원본과 비교 시각화
+
+undistort 결과를 원본과 나란히 붙여 육안으로 보정 효과를 확인합니다.
+
+```python
+dst = cv2.undistort(test_img, K, dist, None, new_camera_mtx)  # 왜곡 보정
+result = np.hstack((test_img, dst))  # 원본/보정 결과 비교
+cv2.imshow('Original vs Undistorted', result)
+```
+
+### 실행 결과
+
+![Calibration Result](img1.png)
+
+
+# 2. Rotation + Scaling + Translation 아핀 변환
+
+- rose 이미지를 중심 기준으로 회전
+- 동시에 0.8배 축소
+- x:+80, y:-40 평행이동을 같은 행렬에 반영
+- 단일 warpAffine 호출로 결과 생성 및 저장
+
+<details>
+    <summary>전체 코드</summary>
+
 ```python
 import cv2
 import numpy as np
@@ -186,21 +225,51 @@ cv2.imwrite('2W/transformed_rose.png', dst)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 ```
-4. 결과
-![alt text](img2.png)
 
-📐 3. 스테레오 시차 기반 깊이 추정 (Stereo Depth Estimation)
-두 대의 카메라(스테레오 카메라) 시스템을 통해 촬영된 좌/우 이미지 쌍을 이용하여 물체와의 거리(Depth)를 계산하는 실습 과제입니다. 픽셀 간의 시차(Disparity) 정보를 물리적인 거리 단위로 변환하는 과정을 포함합니다.
-1. 과제 개요
-인간의 눈이 사물을 입체적으로 인식하는 원리와 동일하게, 두 이미지에서 동일한 물체가 나타나는 위치 차이를 분석합니다. 이 시차 정보를 활용하여 2차원 이미지로부터 3차원 깊이 정보(Depth Map)를 추출하고, 특정 관심 영역(ROI)의 실제 거리를 미터(m) 단위로 추정합니다.
-2. 주요 요구사항 및 물리 파라미터
-• 시차 계산: cv2.StereoBM 알고리즘을 사용하여 좌/우 영상의 픽셀 변위를 계산합니다.
-• 깊이 변환: 공식 z = fB / d 를 적용하여 시차를 거리로 변환합니다.
-• 카메라 파라미터:
-    - 초점 거리 ($f$): 700.0 (픽셀 단위)
-    - 베이스라인 ($B$): 0.12m (두 카메라 사이의 거리)
-• 대상 분석: Painting, Frog, Teddy 세 영역의 평균 깊이를 계산하고 거리를 비교합니다.
-3. 전체 코드
+</details>
+
+## 1) 회전 + 축소 행렬 생성
+
+중심점 기준 회전과 스케일을 동시에 적용할 2x3 행렬을 생성합니다.
+
+```python
+center = (w // 2, h // 2)  # 중심 좌표
+M = cv2.getRotationMatrix2D(center, 30, 0.8)  # 30도 회전 + 0.8배 축소
+```
+
+## 2) 평행이동을 같은 행렬에 직접 합성
+
+M[0,2], M[1,2]를 직접 수정하면 별도 변환 없이 한 번에 이동까지 반영할 수 있습니다.
+
+```python
+M[0, 2] += 80   # x축 +80 이동
+M[1, 2] += -40  # y축 -40 이동
+```
+
+## 3) warpAffine 적용 및 결과 저장
+
+최종 변환 행렬로 이미지를 변환하고 결과를 파일로 남깁니다.
+
+```python
+dst = cv2.warpAffine(img, M, (w, h))  # 단일 아핀 변환 적용
+cv2.imwrite('2W/transformed_rose.png', dst)  # 결과 저장
+```
+
+### 실행 결과
+
+![Affine Result](img2.png)
+
+
+# 3. StereoBM 기반 시차/깊이 추정 및 ROI 분석
+
+- 좌/우 이미지에서 disparity를 계산
+- 깊이 공식을 이용해 depth map 생성
+- Painting/Frog/Teddy ROI 평균 disparity/depth를 계산
+- disparity/depth 컬러맵 및 ROI 표시 결과를 저장/출력
+
+<details>
+    <summary>전체 코드</summary>
+
 ```python
 import cv2
 import numpy as np
@@ -404,5 +473,47 @@ cv2.imshow("ROI Selection (Right)", right_vis)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 ```
-4. 출력
-![alt text](img3.png)
+
+</details>
+
+## 1) StereoBM으로 disparity 계산
+
+좌/우 그레이스케일 이미지에서 시차를 계산하고, OpenCV 스케일(16배)을 원래 단위로 복원합니다.
+
+```python
+stereo = cv2.StereoBM_create(numDisparities=64, blockSize=15)  # StereoBM 설정
+disparity_raw = stereo.compute(left_gray, right_gray)          # 시차 계산
+disparity = disparity_raw.astype(np.float32) / 16.0            # 실제 disparity로 변환
+```
+
+## 2) 깊이 계산과 ROI 평균 거리 분석
+
+공식 $Z = \frac{fB}{d}$를 적용해 depth map을 만든 뒤, ROI별 평균 disparity/depth를 계산합니다.
+
+```python
+valid_mask = disparity > 0
+depth_map = np.zeros(disparity.shape, dtype=np.float32)
+depth_map[valid_mask] = (f * B) / disparity[valid_mask]  # 깊이 계산
+
+for name, (x, y, w, h) in rois.items():
+    roi_disp = disparity[y:y+h, x:x+w]
+    roi_depth = depth_map[y:y+h, x:x+w]
+```
+
+## 3) disparity/depth 컬러맵 생성과 시각화
+
+시차/깊이를 각각 정규화해 컬러맵으로 변환하고, ROI 박스 이미지를 함께 출력/저장합니다.
+
+```python
+disparity_color = cv2.applyColorMap(disp_vis, cv2.COLORMAP_JET)
+depth_color = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
+
+cv2.imwrite(str(output_dir / "disparity_color.png"), disparity_color)
+cv2.imwrite(str(output_dir / "depth_color.png"), depth_color)
+cv2.imwrite(str(output_dir / "roi_left.png"), left_vis)
+cv2.imwrite(str(output_dir / "roi_right.png"), right_vis)
+```
+
+### 실행 결과
+
+![Depth Result](img3.png)

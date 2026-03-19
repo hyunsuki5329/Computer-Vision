@@ -1,20 +1,13 @@
-1. 이미지 불러오기 및 그레이스케일 변환
+# 1. 이미지 로드 및 컬러/그레이스케일 비교 출력
 
-설명
-• OpenCV를 사용하여 이미지를 불러오고 화면에 출력
-• 원본 이미지와 그레이스케일로 변환된 이미지를 나란히 표시
+- soccer.jpg를 로드하고 화면 크기에 맞게 0.5배 축소
+- 축소된 이미지를 그레이스케일로 변환
+- np.hstack으로 컬러 영상과 그레이 영상을 좌우로 연결
+- 하나의 창에서 두 영상을 동시에 비교
 
-요구사항
-• cv.imread()를 사용하여 이미지 로드
-• cv.cvtColor() 함수를 사용해 이미지를 그레이스케일로 변환
-• np.hstack() 함수를 이용해 원본 이미지와 그레이스케일 이미지를 가로로 연결하여 출력
-• cv.imshow()와 cv.waitKey()를 사용해 결과를 화면에 표시하고, 아무 키나 누르면 창이 닫히도록 할 것
+<details>
+    <summary>전체 코드</summary>
 
-힌트
-• OpenCV는 이미지를 BGR 형식으로 읽음
-• 그레이스케일 변환시 cv.COLOR_BGR2GRAY 사용
-
-코드
 ```python
 import cv2 as cv
 import sys
@@ -50,30 +43,54 @@ cv.waitKey()
 cv.destroyAllWindows()
 ```
 
-출력
-![alt text](image1.png)
+</details>
+
+## 1) 이미지 로드 후 화면 표시 크기로 축소
+
+큰 원본 이미지를 그대로 띄우면 창이 너무 커질 수 있어 먼저 축소합니다.
+이 단계에서 이후 처리 대상의 해상도가 결정됩니다.
+
+```python
+img = cv.imread('soccer.jpg')  # 원본 이미지 로드
+img_small = cv.resize(img, dsize=(0, 0), fx=0.5, fy=0.5)  # 가로/세로 0.5배 축소
+```
+
+## 2) 그레이스케일 변환 후 hstack 가능한 형태로 정리
+
+그레이스케일은 1채널이므로 컬러 영상(3채널)과 바로 이어붙일 수 없습니다.
+따라서 COLOR_GRAY2BGR로 3채널로 맞춘 뒤 np.hstack을 수행합니다.
+
+```python
+gray = cv.cvtColor(img_small, cv.COLOR_BGR2GRAY)  # 흑백 변환
+gray_3channel = cv.cvtColor(gray, cv.COLOR_GRAY2BGR)  # 1채널 -> 3채널 변환
+combined = np.hstack((img_small, gray_3channel))  # 좌우 비교용 결합
+```
+
+## 3) 결합 영상 출력 및 크기 정보 확인
+
+결과 영상을 띄우고, 콘솔에 원본/축소 크기를 함께 출력해 전처리 결과를 확인합니다.
+
+```python
+cv.imshow('Reduced Size - Color & Gray', combined)  # 결합 영상 출력
+print(f"Original Size: {img.shape}")  # 원본 크기
+print(f"Reduced Size: {img_small.shape}")  # 축소 크기
+```
+
+### 실행 결과
+
+![Color Gray Result](image1.png)
 
 
+# 2. 마우스 페인팅 및 붓 크기 조절
 
-2. 페인팅 붓 크기 조절 기능 추가
+- 마우스 좌클릭/우클릭으로 이미지에 색을 칠하는 인터랙션 구현
+- 좌클릭은 파란색, 우클릭은 빨간색으로 드래그 페인팅 지원
+- 키보드 `+`, `-`로 붓 크기를 조절하고 `q`로 종료
+- 붓 크기는 1~15 범위로 제한
 
-설명
-• 마우스 입력으로 이미지 위에 붓질
-• 키보드 입력을 이용해 붓의 크기를 조절하는 기능 추가
+<details>
+    <summary>전체 코드</summary>
 
-요구사항
-• 초기 붓 크기는 5를 사용
-• + 입력 시 붓 크기 1 증가, - 입력 시 붓 크기 1 감소
-• 붓 크기는 최소 1, 최대 15로 제한
-• 좌클릭=파란색, 우클릭=빨간색, 드래그로 연속 그리기
-• q 키를 누르면 영상 창이 종료
-
-힌트
-• 마우스 이벤트는 cv.setMouseCallback()을 통해 처리하며, cv.circle()을 이용해 현재 붓 크기로 원을 그림
-• cv.waitKey(1)로 받은 값을 이용해 +, -, q를 구분
-• Key 입력은 루프 안에서 처리
-
-코드
 ```python
 import cv2 as cv
 import sys
@@ -124,31 +141,59 @@ while True:
 cv.destroyAllWindows()
 ```
 
-출력
-![alt text](image2.png)
+</details>
+
+## 1) 마우스 이벤트로 좌/우 버튼 페인팅 처리
+
+EVENT_LBUTTONDOWN, EVENT_RBUTTONDOWN, 그리고 드래그 상태(EVENT_MOUSEMOVE + 플래그)를 함께 처리해
+한 번 클릭뿐 아니라 연속 붓질이 가능하도록 구성합니다.
+
+```python
+if event == cv.EVENT_LBUTTONDOWN or (event == cv.EVENT_MOUSEMOVE and (flags & cv.EVENT_FLAG_LBUTTON)):
+    cv.circle(img, (x, y), brush_size, L_color, -1)  # 파란색 붓질
+elif event == cv.EVENT_RBUTTONDOWN or (event == cv.EVENT_MOUSEMOVE and (flags & cv.EVENT_FLAG_RBUTTON)):
+    cv.circle(img, (x, y), brush_size, R_color, -1)  # 빨간색 붓질
+```
+
+## 2) 키 입력으로 붓 크기 동적 조절
+
+`cv.waitKey(1)` 루프에서 `+`, `-`, `q`를 실시간으로 받습니다.
+min/max를 이용해 붓 크기가 지정 범위를 벗어나지 않도록 제한합니다.
+
+```python
+if key == ord('q'):
+    break  # 종료
+elif key == ord('+'):
+    brush_size = min(brush_size + 1, 15)  # 최대 15
+elif key == ord('-'):
+    brush_size = max(brush_size - 1, 1)  # 최소 1
+```
+
+## 3) 콜백 등록 후 인터랙티브 창 유지
+
+윈도우에 콜백을 연결해야 마우스 동작이 실제로 그림 작업으로 반영됩니다.
+
+```python
+cv.namedWindow('Painting')
+cv.imshow('Painting', img)
+cv.setMouseCallback('Painting', draw)  # 마우스 입력을 draw 함수에 연결
+```
+
+### 실행 결과
+
+![Painting Result](image2.png)
 
 
+# 3. 마우스 드래그 기반 ROI 선택/추출/저장
 
-3. 마우스로 영역 선택 및 ROI(관심영역) 추출
+- 사용자가 드래그한 사각형을 ROI로 추출
+- 드래그 중에는 실시간 사각형 미리보기를 표시
+- 마우스를 놓으면 ROI를 별도 창에 출력
+- `r`로 리셋, `s`로 저장, `q`로 종료
 
-설명
-• 이미지를 불러오고 사용자가 마우스로 클릭하고 드래그하여 관심영역(ROI)을 선택
-• 선택한 영역만 따로 저장하거나 표시
+<details>
+    <summary>전체 코드</summary>
 
-요구사항
-• 이미지를 불러오고 화면에 출력
-• cv.setMouseCallback()을 사용하여 마우스 이벤트를 처리
-• 사용자가 클릭한 시작점에서 드래그하여 사각형을 그리며 영역을 선택
-• 마우스를 놓으면 해당 영역을 잘라내서 별도의 창에 출력
-• r 키를 누르면 영역 선택을 리셋하고 처음부터 다시 선택
-• s 키를 누르면 선택한 영역을 이미지 파일로 저장
-
-힌트
-• cv.rectangle() 함수로 드래그 중인 영역을 시각화
-• ROI 추출은 numpy 슬라이싱을 사용
-• cv.imwrite()를 사용하여 이미지를 저장
-
-코드
 ```python
 import cv2 as cv
 import sys
@@ -227,5 +272,50 @@ while True:
 cv.destroyAllWindows()
 ```
 
-출력
-![alt text](image3.png)
+</details>
+
+## 1) 드래그 기반 사각형 선택과 ROI 추출
+
+마우스 다운에서 시작점을 기록하고, 업 이벤트에서 끝점을 받아 ROI를 확정합니다.
+드래그 방향이 어떤 경우든 정상 처리되도록 min/max로 좌표를 정규화합니다.
+
+```python
+x1, x2 = min(ix, x), max(ix, x)
+y1, y2 = min(iy, y), max(iy, y)
+
+if x1 != x2 and y1 != y2:
+    roi = ori_img[y1:y2, x1:x2]  # 원본에서 ROI 슬라이싱
+    cv.imshow('Cropped ROI', roi)  # 선택 영역 미리보기
+```
+
+## 2) 드래그 중 실시간 시각화
+
+사용자가 현재 어떤 영역을 선택 중인지 확인할 수 있도록,
+마우스 이동마다 임시 복사본 위에 사각형을 그려 미리보기를 제공합니다.
+
+```python
+if drawing:
+    img_draw = img.copy()  # 원본 작업 이미지 훼손 방지
+    cv.rectangle(img_draw, (ix, iy), (x, y), (0, 255, 0), 2)
+    cv.imshow('Select ROI', img_draw)
+```
+
+## 3) 키보드로 리셋/저장/종료 제어
+
+`r`은 ROI 선택 상태 초기화, `s`는 ROI 파일 저장, `q`는 프로그램 종료입니다.
+ROI가 없는 상태에서 저장을 누를 때도 안전하게 예외 메시지를 출력합니다.
+
+```python
+if key == ord('q'):
+    break
+elif key == ord('r'):
+    img = ori_img.copy()
+    roi = None
+elif key == ord('s'):
+    if roi is not None:
+        cv.imwrite('soccer_roi.jpg', roi)
+```
+
+### 실행 결과
+
+![ROI Result](image3.png)
