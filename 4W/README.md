@@ -1,13 +1,9 @@
 # 1. SIFT 특징점 검출 및 시각화
 
-## 1 문제 및 요구사항
-
 - mot_color70.jpg를 로드하고 SIFT 특징점을 검출
 - 검출된 특징점을 단일 색상(초록색)으로 시각화
 - 특징점의 크기/방향 정보를 함께 표시
 - matplotlib로 원본 이미지와 특징점 결과를 나란히 출력
-
-## 2 코드설명
 
 <details>
     <summary>전체 코드</summary>
@@ -119,8 +115,6 @@ if __name__ == "__main__":
 
 </details>
 
-### 1 핵심코드
-
 ## 1) SIFT 생성 및 특징점 검출
 
 SIFT 객체를 만들고 detectAndCompute를 통해 keypoint와 descriptor를 동시에 계산합니다.
@@ -151,21 +145,33 @@ keypoint_viz_bgr = cv.drawKeypoints(
 )
 ```
 
-## 3 실행결과
+## 3) matplotlib으로 원본/결과 비교 출력
+
+원본과 특징점 시각화 이미지를 1행 2열로 배치해 비교합니다.
+OpenCV(BGR)와 matplotlib(RGB)의 채널 순서 차이 때문에 표시 전 변환이 필요합니다.
+
+```python
+original_rgb = cv.cvtColor(original_bgr, cv.COLOR_BGR2RGB)
+keypoint_viz_rgb = cv.cvtColor(keypoint_viz_bgr, cv.COLOR_BGR2RGB)
+
+plt.subplot(1, 2, 1)
+plt.imshow(original_rgb)
+
+plt.subplot(1, 2, 2)
+plt.imshow(keypoint_viz_rgb)
+```
+
+### 실행 결과
 
 ![SIFT Keypoint Result](result1.png)
 
 
 # 2. SIFT 기반 두 영상 특징점 매칭
 
-## 1 문제 및 요구사항
-
 - mot_color70.jpg, mot_color80.jpg를 입력으로 사용
 - SIFT로 두 영상의 특징점/디스크립터를 추출
 - BFMatcher + knnMatch(k=2)로 매칭하고 ratio test로 좋은 매칭점 선별
 - drawMatches로 매칭선을 시각화하고 matplotlib으로 출력
-
-## 2 코드설명
 
 <details>
     <summary>전체 코드</summary>
@@ -286,8 +292,6 @@ if __name__ == "__main__":
 
 </details>
 
-### 1 핵심코드
-
 ## 1) BFMatcher + knnMatch로 후보 매칭 생성
 
 SIFT는 float descriptor를 쓰므로 BFMatcher에서 L2 거리 기준이 일반적입니다.
@@ -304,7 +308,6 @@ knn_matches = matcher.knnMatch(descriptors1, descriptors2, k=2)
 이 코드에서는 임계값 0.75를 사용합니다.
 
 ```python
-
 ratio_threshold = 0.75
 good_matches = []
 for pair in knn_matches:
@@ -335,21 +338,17 @@ match_vis_bgr = cv.drawMatches(
 )
 ```
 
-## 3 실행결과
+### 실행 결과
 
 ![SIFT Matching Result](result2.png)
 
 
 # 3. 호모그래피 기반 이미지 정합 (Image Alignment)
 
-## 1 문제 및 요구사항
-
 - img1.jpg와 img2.jpg에서 SIFT 특징점을 추출하고 매칭
 - ratio test와 RANSAC으로 안정적인 대응점만 사용
 - findHomography로 변환 행렬을 계산해 img2를 img1 기준으로 정렬
 - Warped Image와 Matching Result를 나란히 출력
-
-## 2 코드설명
 
 <details>
     <summary>전체 코드</summary>
@@ -519,8 +518,6 @@ if __name__ == "__main__":
 
 </details>
 
-### 1 핵심코드
-
 ## 1) 좋은 매칭점으로 호모그래피 대응점 구성
 
 호모그래피는 두 영상의 대응점 쌍이 필요합니다.
@@ -552,6 +549,6 @@ warped_bgr = cv.warpPerspective(image2_bgr, homography, (panorama_width, panoram
 warped_bgr[0:h1, 0:w1] = image1_bgr
 ```
 
-## 3 실행결과
+### 실행 결과
 
 ![Homography Alignment Result](result3.png)
