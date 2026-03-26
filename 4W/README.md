@@ -1,4 +1,4 @@
-# [PART 1] 1. SIFT 특징점 검출 및 시각화
+# 1. SIFT 특징점 검출 및 시각화
 
 - mot_color70.jpg를 로드하고 SIFT 특징점을 검출
 - 검출된 특징점을 단일 색상(초록색)으로 시각화
@@ -115,7 +115,7 @@ if __name__ == "__main__":
 
 </details>
 
-## [핵심 1] 1) SIFT 생성 및 특징점 검출
+## 1) SIFT 생성 및 특징점 검출
 
 SIFT 객체를 만들고 detectAndCompute를 통해 keypoint와 descriptor를 동시에 계산합니다.
 매개변수(nfeatures, contrastThreshold, edgeThreshold, sigma)를 조정하면 검출 개수와 안정성이 달라집니다.
@@ -130,7 +130,7 @@ sift = cv.SIFT_create(
 keypoints, descriptors = sift.detectAndCompute(original_bgr, None)
 ```
 
-## [핵심 2] 2) drawKeypoints로 특징점 시각화
+## 2) drawKeypoints로 특징점 시각화
 
 DRAW_RICH_KEYPOINTS 플래그를 사용해 점의 위치뿐 아니라 스케일/방향 정보까지 함께 표시합니다.
 색상을 하나로 통일해 결과를 눈에 잘 띄게 했습니다.
@@ -145,7 +145,7 @@ keypoint_viz_bgr = cv.drawKeypoints(
 )
 ```
 
-## [핵심 3] 3) matplotlib으로 원본/결과 비교 출력
+## 3) matplotlib으로 원본/결과 비교 출력
 
 원본과 특징점 시각화 이미지를 1행 2열로 배치해 비교합니다.
 OpenCV(BGR)와 matplotlib(RGB)의 채널 순서 차이 때문에 표시 전 변환이 필요합니다.
@@ -161,12 +161,12 @@ plt.subplot(1, 2, 2)
 plt.imshow(keypoint_viz_rgb)
 ```
 
-### [결과] 실행 결과
+### 실행 결과
 
 ![SIFT Keypoint Result](result1.png)
 
 
-# [PART 2] 2. SIFT 기반 두 영상 특징점 매칭
+# 2. SIFT 기반 두 영상 특징점 매칭
 
 - mot_color70.jpg, mot_color80.jpg를 입력으로 사용
 - SIFT로 두 영상의 특징점/디스크립터를 추출
@@ -292,7 +292,7 @@ if __name__ == "__main__":
 
 </details>
 
-## [핵심 1] 1) BFMatcher + knnMatch로 후보 매칭 생성
+## 1) BFMatcher + knnMatch로 후보 매칭 생성
 
 SIFT는 float descriptor를 쓰므로 BFMatcher에서 L2 거리 기준이 일반적입니다.
 knnMatch(k=2)로 각 특징점마다 최근접/차근접 후보를 받아 ratio test를 적용할 준비를 합니다.
@@ -302,7 +302,7 @@ matcher = cv.BFMatcher(cv.NORM_L2, crossCheck=False)
 knn_matches = matcher.knnMatch(descriptors1, descriptors2, k=2)
 ```
 
-## [핵심 2] 2) Lowe Ratio Test로 좋은 매칭 필터링
+## 2) Lowe Ratio Test로 좋은 매칭 필터링
 
 최근접 매칭이 차근접 매칭보다 충분히 가까울 때만 채택해 오매칭을 줄입니다.
 이 코드에서는 임계값 0.75를 사용합니다.
@@ -318,7 +318,7 @@ for pair in knn_matches:
         good_matches.append(m)
 ```
 
-## [핵심 3] 3) drawMatches로 매칭 결과 시각화
+## 3) drawMatches로 매칭 결과 시각화
 
 정렬된 좋은 매칭 중 상위 일부만 표시해 화면 복잡도를 줄이고,
 결과를 matplotlib으로 한 번에 확인합니다.
@@ -338,12 +338,12 @@ match_vis_bgr = cv.drawMatches(
 )
 ```
 
-### [결과] 실행 결과
+### 실행 결과
 
 ![SIFT Matching Result](result2.png)
 
 
-# [PART 3] 3. 호모그래피 기반 이미지 정합 (Image Alignment)
+# 3. 호모그래피 기반 이미지 정합 (Image Alignment)
 
 - img1.jpg와 img2.jpg에서 SIFT 특징점을 추출하고 매칭
 - ratio test와 RANSAC으로 안정적인 대응점만 사용
@@ -518,7 +518,7 @@ if __name__ == "__main__":
 
 </details>
 
-## [핵심 1] 1) 좋은 매칭점으로 호모그래피 대응점 구성
+## 1) 좋은 매칭점으로 호모그래피 대응점 구성
 
 호모그래피는 두 영상의 대응점 쌍이 필요합니다.
 여기서는 good_matches에서 img2(src)와 img1(dst) 좌표를 꺼내 findHomography 입력 형식으로 만듭니다.
@@ -528,7 +528,7 @@ src_pts = np.float32([keypoints2[m.trainIdx].pt for m in good_matches]).reshape(
 dst_pts = np.float32([keypoints1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
 ```
 
-## [핵심 2] 2) RANSAC으로 호모그래피 추정
+## 2) RANSAC으로 호모그래피 추정
 
 일부 오매칭(outlier)이 포함되어도 RANSAC을 사용하면 안정적인 변환 행렬을 구할 수 있습니다.
 반환된 inlier_mask를 이용해 실제 정합에 기여한 매칭만 골라낼 수 있습니다.
@@ -537,7 +537,7 @@ dst_pts = np.float32([keypoints1[m.queryIdx].pt for m in good_matches]).reshape(
 homography, inlier_mask = cv.findHomography(src_pts, dst_pts, cv.RANSAC, 5.0)
 ```
 
-## [핵심 3] 3) warpPerspective 정렬 + 매칭 결과 동시 출력
+## 3) warpPerspective 정렬 + 매칭 결과 동시 출력
 
 출력 크기를 (w1+w2, max(h1,h2))로 잡아 파노라마 형태로 정렬 결과를 확인합니다.
 동시에 drawMatches 결과를 옆에 배치해 정합 품질을 육안으로 점검합니다.
@@ -549,6 +549,6 @@ warped_bgr = cv.warpPerspective(image2_bgr, homography, (panorama_width, panoram
 warped_bgr[0:h1, 0:w1] = image1_bgr
 ```
 
-### [결과] 실행 결과
+### 실행 결과
 
 ![Homography Alignment Result](result3.png)
