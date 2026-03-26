@@ -13,6 +13,14 @@ def load_bgr_image(image_path: str):
     return image_bgr
 
 
+def save_bgr_image(image_path: str, image_bgr):
+    ext = os.path.splitext(image_path)[1] or ".png"
+    success, encoded = cv.imencode(ext, image_bgr)
+    if not success:
+        raise RuntimeError(f"이미지 인코딩에 실패했습니다: {image_path}")
+    encoded.tofile(image_path)
+
+
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     # 샘플 이미지 2장 선택 (img1, img2)
@@ -22,6 +30,10 @@ def main():
     # 기준 이미지(img1)와 정렬 대상 이미지(img2) 로드
     image1_bgr = load_bgr_image(image1_path)
     image2_bgr = load_bgr_image(image2_path)
+    if image1_bgr is None:
+        raise FileNotFoundError(f"이미지를 불러올 수 없습니다: {image1_path}")
+    if image2_bgr is None:
+        raise FileNotFoundError(f"이미지를 불러올 수 없습니다: {image2_path}")
 
     # SIFT 계산을 위해 그레이스케일로 변환
     gray1 = cv.cvtColor(image1_bgr, cv.COLOR_BGR2GRAY)
@@ -66,6 +78,18 @@ def main():
     # 호모그래피 계산 최소 조건(4쌍) 미만이면 중단
     if len(good_matches) < 4:
         raise RuntimeError(f"호모그래피 계산에 필요한 매칭점이 부족합니다. good_matches={len(good_matches)}")
+
+    # good matches 기준 시각화(호모그래피 전 단계 중간 결과)
+    good_matches_to_draw = good_matches[:120]
+    good_matches_bgr = cv.drawMatches(
+        image1_bgr,
+        keypoints1,
+        image2_bgr,
+        keypoints2,
+        good_matches_to_draw,
+        None,
+        flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS,
+    )
 
     # 호모그래피 계산: img2 좌표를 img1 좌표계로 변환
     # trainIdx는 두 번째 이미지(keypoints2)에서의 매칭 인덱스
@@ -125,6 +149,14 @@ def main():
         # 단일(비매칭) 특징점은 생략
         flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS,
     )
+
+    # README용 중간/최종 결과 이미지 저장
+    save_bgr_image(os.path.join(script_dir, "result3_good_matches.png"), good_matches_bgr)
+    save_bgr_image(os.path.join(script_dir, "result3_inlier_matches.png"), matching_result_bgr)
+    save_bgr_image(os.path.join(script_dir, "result3_warped.png"), warped_bgr)
+
+    final_panel_bgr = cv.hconcat([warped_bgr, matching_result_bgr])
+    save_bgr_image(os.path.join(script_dir, "result3.png"), final_panel_bgr)
 
     # matplotlib 표시를 위해 결과 이미지를 BGR -> RGB로 변환
     warped_rgb = cv.cvtColor(warped_bgr, cv.COLOR_BGR2RGB)

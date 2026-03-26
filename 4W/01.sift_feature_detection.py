@@ -21,6 +21,15 @@ def load_bgr_image(image_path: str):
     return image_bgr
 
 
+def save_bgr_image(image_path: str, image_bgr):
+    """Save image robustly, including non-ASCII paths on Windows."""
+    ext = os.path.splitext(image_path)[1] or ".png"
+    success, encoded = cv.imencode(ext, image_bgr)
+    if not success:
+        raise RuntimeError(f"이미지 인코딩에 실패했습니다: {image_path}")
+    encoded.tofile(image_path)
+
+
 def main():
     # 1) 입력 이미지 경로
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -69,6 +78,11 @@ def main():
     original_rgb = cv.cvtColor(original_bgr, cv.COLOR_BGR2RGB)
     # 특징점 시각화 이미지를 matplotlib 표시에 맞게 RGB로 변환
     keypoint_viz_rgb = cv.cvtColor(keypoint_viz_bgr, cv.COLOR_BGR2RGB)
+
+    # 6-1) README용 중간/최종 결과 이미지 저장
+    save_bgr_image(os.path.join(script_dir, "result1_input.png"), original_bgr)
+    save_bgr_image(os.path.join(script_dir, "result1_keypoints.png"), keypoint_viz_bgr)
+    save_bgr_image(os.path.join(script_dir, "result1.png"), keypoint_viz_bgr)
 
     # 7) 결과 출력
     plt.figure(figsize=(14, 6))

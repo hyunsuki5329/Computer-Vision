@@ -17,6 +17,14 @@ def load_bgr_image(image_path: str):
     return image_bgr
 
 
+def save_bgr_image(image_path: str, image_bgr):
+    ext = os.path.splitext(image_path)[1] or ".png"
+    success, encoded = cv.imencode(ext, image_bgr)
+    if not success:
+        raise RuntimeError(f"이미지 인코딩에 실패했습니다: {image_path}")
+    encoded.tofile(image_path)
+
+
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     image1_path = os.path.join(script_dir, "mot_color70.jpg")
@@ -25,6 +33,10 @@ def main():
     # 두 이미지를 BGR 형식으로 로드
     image1_bgr = load_bgr_image(image1_path)
     image2_bgr = load_bgr_image(image2_path)
+    if image1_bgr is None:
+        raise FileNotFoundError(f"이미지를 불러올 수 없습니다: {image1_path}")
+    if image2_bgr is None:
+        raise FileNotFoundError(f"이미지를 불러올 수 없습니다: {image2_path}")
 
     # SIFT 계산 전, 두 이미지를 그레이스케일로 변환
     gray1 = cv.cvtColor(image1_bgr, cv.COLOR_BGR2GRAY)
@@ -49,6 +61,19 @@ def main():
     matcher = cv.BFMatcher(cv.NORM_L2, crossCheck=False)
     # 각 특징점에 대해 최근접 2개 이웃을 찾는 KNN 매칭 수행
     knn_matches = matcher.knnMatch(descriptors1, descriptors2, k=2)
+
+    # KNN 원시 매칭 시각화를 위한 2개 이웃 쌍 필터링
+    knn_pairs = [pair for pair in knn_matches if len(pair) == 2]
+    knn_pairs_to_draw = knn_pairs[:120]
+    knn_raw_bgr = cv.drawMatchesKnn(
+        image1_bgr,
+        keypoints1,
+        image2_bgr,
+        keypoints2,
+        knn_pairs_to_draw,
+        None,
+        flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS,
+    )
 
     # Lowe ratio test 임계값 설정
     ratio_threshold = 0.75
@@ -90,6 +115,12 @@ def main():
 
     # matplotlib 표시를 위해 BGR -> RGB 변환
     match_vis_rgb = cv.cvtColor(match_vis_bgr, cv.COLOR_BGR2RGB)
+
+    # README용 중간/최종 결과 이미지 저장
+    input_pair_bgr = cv.hconcat([image1_bgr, image2_bgr])
+    save_bgr_image(os.path.join(script_dir, "result2_input_pair.png"), input_pair_bgr)
+    save_bgr_image(os.path.join(script_dir, "result2_knn_raw.png"), knn_raw_bgr)
+    save_bgr_image(os.path.join(script_dir, "result2.png"), match_vis_bgr)
 
     # 결과 출력용 Figure 생성
     plt.figure(figsize=(16, 7))
