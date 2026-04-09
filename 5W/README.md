@@ -3,84 +3,84 @@
 - MNIST 손글씨 숫자 데이터셋을 로드
 - 전체 데이터를 하나로 합친 뒤 8:2로 재분할
 - MLP(완전연결 신경망) 모델을 구성해 학습
-- 테스트 정확도와 혼동행렬로 성능 평가
-
-<details>
+import numpy as np  # 배열 연산과 셔플 처리를 위해 NumPy를 사용합니다.
+import tensorflow as tf  # MNIST 데이터 로드와 모델 학습을 위해 TensorFlow를 사용합니다.
+from tensorflow.keras import layers, models  # Keras의 레이어와 모델 API를 가져옵니다.
 	<summary>전체 코드</summary>
 
 ```python
-import numpy as np  # 배열 연산과 데이터 결합/셔플을 위해 NumPy를 사용합니다.
-import tensorflow as tf  # 데이터셋 로드와 신경망 학습을 위해 TensorFlow를 사용합니다.
-from tensorflow.keras import layers, models  # Keras의 레이어와 모델 API를 가져옵니다.
+	rng = np.random.default_rng(seed)  # 재현 가능한 셔플을 위한 난수 생성기를 만듭니다.
+	indices = rng.permutation(len(images))  # 전체 샘플 인덱스를 무작위로 섞습니다.
+	split_idx = int(len(images) * train_ratio)  # train/test를 나눌 기준 지점을 계산합니다.
 
-
-def split_dataset(images, labels, train_ratio=0.8, seed=42):
+	train_idx = indices[:split_idx]  # 앞부분 인덱스를 훈련용으로 사용합니다.
+	test_idx = indices[split_idx:]  # 뒷부분 인덱스를 테스트용으로 사용합니다.
 	rng = np.random.default_rng(seed)  # 재현 가능한 셔플을 위해 고정 시드 난수 생성기를 만듭니다.
-	indices = rng.permutation(len(images))  # 전체 샘플 인덱스를 무작위 순서로 섞습니다.
-	split_idx = int(len(images) * train_ratio)  # 훈련 세트와 테스트 세트를 나눌 기준 위치를 계산합니다.
-
-	train_idx = indices[:split_idx]  # 앞부분 인덱스를 훈련 데이터용으로 사용합니다.
-	test_idx = indices[split_idx:]  # 뒷부분 인덱스를 테스트 데이터용으로 사용합니다.
+	x_train = images[train_idx]  # 훈련 이미지 데이터를 추출합니다.
+	y_train = labels[train_idx]  # 훈련 라벨 데이터를 추출합니다.
+	x_test = images[test_idx]  # 테스트 이미지 데이터를 추출합니다.
+	y_test = labels[test_idx]  # 테스트 라벨 데이터를 추출합니다.
+	return x_train, x_test, y_train, y_test  # 분할된 데이터를 반환합니다.
 
 	x_train = images[train_idx]  # 훈련 이미지 데이터를 인덱스로 추출합니다.
 	y_train = labels[train_idx]  # 훈련 정답 라벨을 인덱스로 추출합니다.
-	x_test = images[test_idx]  # 테스트 이미지 데이터를 인덱스로 추출합니다.
+	return images.astype("float32") / 255.0  # 픽셀값을 0~1로 정규화합니다.
 	y_test = labels[test_idx]  # 테스트 정답 라벨을 인덱스로 추출합니다.
 	return x_train, x_test, y_train, y_test  # 분할된 데이터 4개를 반환합니다.
 
-
+	model = models.Sequential(  # 순차형 MLP 모델을 구성합니다.
 def preprocess_images(images):
-	return images.astype("float32") / 255.0  # 픽셀값을 0~1 범위로 정규화해 학습 안정성을 높입니다.
-
-
-def build_model():
+			layers.Flatten(input_shape=(28, 28)),  # 28x28 이미지를 1차원으로 펼칩니다.
+			layers.Dense(128, activation="relu"),  # 첫 번째 은닉층입니다.
+			layers.Dense(64, activation="relu"),  # 두 번째 은닉층입니다.
+			layers.Dense(10, activation="softmax"),  # 10개 클래스 확률을 출력합니다.
 	model = models.Sequential(  # 층을 순서대로 쌓는 Sequential 모델을 생성합니다.
 		[
 			layers.Flatten(input_shape=(28, 28)),  # 28x28 이미지를 1차원 벡터(784)로 펼칩니다.
-			layers.Dense(128, activation="relu"),  # 첫 번째 은닉층(뉴런 128개)으로 비선형 특징을 학습합니다.
-			layers.Dense(64, activation="relu"),  # 두 번째 은닉층(뉴런 64개)으로 표현을 압축합니다.
-			layers.Dense(10, activation="softmax"),  # 10개 숫자 클래스 확률을 출력합니다.
-		]
+	model.compile(  # 학습 설정을 컴파일합니다.
+		optimizer="adam",  # Adam 최적화기를 사용합니다.
+		loss="sparse_categorical_crossentropy",  # 정수 라벨용 다중분류 손실입니다.
+		metrics=["accuracy"],  # 정확도를 함께 확인합니다.
 	)
-
+	return model  # 컴파일된 모델을 반환합니다.
 	model.compile(  # 학습에 사용할 최적화/손실/평가 지표를 설정합니다.
 		optimizer="adam",  # 적응형 학습률을 사용하는 Adam 옵티마이저를 사용합니다.
 		loss="sparse_categorical_crossentropy",  # 정답이 정수 라벨일 때 쓰는 다중분류 손실입니다.
-		metrics=["accuracy"],  # 학습 중 정확도를 함께 모니터링합니다.
+	(x_train_raw, y_train_raw), (x_test_raw, y_test_raw) = tf.keras.datasets.mnist.load_data()  # MNIST 데이터를 불러옵니다.
 	)
-	return model  # 컴파일된 모델 객체를 반환합니다.
+	all_images = np.concatenate([x_train_raw, x_test_raw], axis=0)  # 전체 이미지를 하나로 합칩니다.
+	all_labels = np.concatenate([y_train_raw, y_test_raw], axis=0)  # 전체 라벨도 하나로 합칩니다.
 
-
-def main():
+	x_train, x_test, y_train, y_test = split_dataset(all_images, all_labels, train_ratio=0.8, seed=42)  # 8:2로 재분할합니다.
 	(x_train_raw, y_train_raw), (x_test_raw, y_test_raw) = tf.keras.datasets.mnist.load_data()  # MNIST 기본 train/test 데이터를 로드합니다.
-
-	all_images = np.concatenate([x_train_raw, x_test_raw], axis=0)  # 전체 이미지를 하나로 합쳐 직접 분할할 수 있게 만듭니다.
-	all_labels = np.concatenate([y_train_raw, y_test_raw], axis=0)  # 전체 라벨도 같은 순서로 하나로 합칩니다.
-
-	x_train, x_test, y_train, y_test = split_dataset(all_images, all_labels, train_ratio=0.8, seed=42)  # 전체 데이터를 8:2로 셔플 분할합니다.
-
 	x_train = preprocess_images(x_train)  # 훈련 이미지를 정규화합니다.
-	x_test = preprocess_images(x_test)  # 테스트 이미지도 같은 방식으로 정규화합니다.
+	x_test = preprocess_images(x_test)  # 테스트 이미지도 정규화합니다.
+	all_labels = np.concatenate([y_train_raw, y_test_raw], axis=0)  # 전체 라벨도 같은 순서로 하나로 합칩니다.
+	print(f"Train set: {x_train.shape}, labels: {y_train.shape}")  # 훈련 데이터 크기를 출력합니다.
+	print(f"Test set:  {x_test.shape}, labels: {y_test.shape}")  # 테스트 데이터 크기를 출력합니다.
 
-	print(f"Train set: {x_train.shape}, labels: {y_train.shape}")  # 분할 결과의 훈련 데이터 크기를 출력합니다.
-	print(f"Test set:  {x_test.shape}, labels: {y_test.shape}")  # 분할 결과의 테스트 데이터 크기를 출력합니다.
-
-	model = build_model()  # 신경망 구조를 생성하고 컴파일합니다.
-	model.summary()  # 모델 층별 파라미터 정보를 콘솔에 출력합니다.
+	model = build_model()  # 모델 구조를 생성합니다.
+	model.summary()  # 층별 파라미터 정보를 출력합니다.
 
 	model.fit(  # 모델 학습을 시작합니다.
+		x_train,  # 입력 이미지입니다.
+		y_train,  # 정답 라벨입니다.
+		epochs=5,  # 전체 데이터를 5번 반복 학습합니다.
+		batch_size=128,  # 한 번에 처리할 샘플 수입니다.
+		validation_split=0.1,  # 훈련 데이터의 일부를 검증용으로 분리합니다.
+		verbose=1,  # 학습 로그를 자세히 출력합니다.
 		x_train,  # 입력 훈련 이미지 데이터입니다.
 		y_train,  # 입력 훈련 정답 라벨입니다.
-		epochs=5,  # 전체 훈련 데이터를 5번 반복 학습합니다.
-		batch_size=128,  # 한 번의 가중치 갱신에 사용할 샘플 수입니다.
-		validation_split=0.1,  # 훈련 데이터의 10%를 검증용으로 분리합니다.
+	test_loss, test_accuracy = model.evaluate(x_test, y_test, verbose=0)  # 테스트셋으로 평가합니다.
+	print(f"\nTest loss: {test_loss:.4f}")  # 테스트 손실을 출력합니다.
+	print(f"Test accuracy: {test_accuracy:.4f}")  # 테스트 정확도를 출력합니다.
 		verbose=1,  # 학습 진행 로그를 자세히 출력합니다.
-	)
-
-	test_loss, test_accuracy = model.evaluate(x_test, y_test, verbose=0)  # 학습이 끝난 모델을 테스트 세트로 평가합니다.
+	probabilities = model.predict(x_test, verbose=0)  # 각 샘플의 클래스 확률을 예측합니다.
+	predictions = np.argmax(probabilities, axis=1)  # 가장 높은 확률의 클래스를 선택합니다.
+	confusion = tf.math.confusion_matrix(y_test, predictions, num_classes=10).numpy()  # 혼동행렬을 계산합니다.
 	print(f"\nTest loss: {test_loss:.4f}")  # 테스트 손실 값을 소수점 4자리로 출력합니다.
-	print(f"Test accuracy: {test_accuracy:.4f}")  # 테스트 정확도를 소수점 4자리로 출력합니다.
-
+	print("\nConfusion matrix (rows=true label, cols=predicted label):")  # 혼동행렬의 의미를 안내합니다.
+	print(confusion)  # 계산된 혼동행렬을 출력합니다.
 	probabilities = model.predict(x_test, verbose=0)  # 각 테스트 샘플의 클래스별 확률을 예측합니다.
 	predictions = np.argmax(probabilities, axis=1)  # 가장 확률이 높은 클래스를 최종 예측값으로 선택합니다.
 	confusion = tf.math.confusion_matrix(y_test, predictions, num_classes=10).numpy()  # 10개 클래스 혼동행렬을 계산합니다.
@@ -166,11 +166,11 @@ Confusion matrix (rows=true label, cols=predicted label):
 	<summary>전체 코드</summary>
 
 ```python
-import os
-import cv2 as cv
-import numpy as np
-import tensorflow as tf
-from tensorflow.keras import layers, models
+import os  # 파일 경로 처리를 위해 사용합니다.
+import cv2 as cv  # 이미지 읽기, 변환, 예측 시각화를 위해 사용합니다.
+import numpy as np  # 배열 처리와 확률 평균 계산을 위해 사용합니다.
+import tensorflow as tf  # CIFAR-10 로드와 모델 학습을 위해 사용합니다.
+from tensorflow.keras import layers, models  # Keras 레이어와 모델 API를 가져옵니다.
 
 
 CLASS_NAMES = [
@@ -188,155 +188,155 @@ CLASS_NAMES = [
 
 
 def load_image_bgr(image_path):
-	image = cv.imread(image_path)
+	image = cv.imread(image_path)  # 일반 경로로 이미지를 먼저 읽습니다.
 	if image is None:
-		raw = np.fromfile(image_path, dtype=np.uint8)
+		raw = np.fromfile(image_path, dtype=np.uint8)  # 바이트로 직접 읽어봅니다.
 		if raw.size > 0:
-			image = cv.imdecode(raw, cv.IMREAD_COLOR)
-	return image
+			image = cv.imdecode(raw, cv.IMREAD_COLOR)  # OpenCV 디코딩을 시도합니다.
+	return image  # 로드 결과를 반환합니다.
 
 
 def preprocess_dataset(x_train, x_test):
-	x_train = x_train.astype("float32") / 255.0
-	x_test = x_test.astype("float32") / 255.0
-	return x_train, x_test
+	x_train = x_train.astype("float32") / 255.0  # 훈련 이미지를 정규화합니다.
+	x_test = x_test.astype("float32") / 255.0  # 테스트 이미지도 정규화합니다.
+	return x_train, x_test  # 정규화된 데이터를 반환합니다.
 
 
 def make_square_crop_views(image_rgb):
-	h, w = image_rgb.shape[:2]
-	side = min(h, w)
+	h, w = image_rgb.shape[:2]  # 원본 이미지 크기를 얻습니다.
+	side = min(h, w)  # 정사각형 크롭의 한 변 길이를 정합니다.
 
-	y_center = (h - side) // 2
-	x_center = (w - side) // 2
-	center = image_rgb[y_center : y_center + side, x_center : x_center + side]
+	y_center = (h - side) // 2  # 중앙 크롭의 y 시작점을 계산합니다.
+	x_center = (w - side) // 2  # 중앙 크롭의 x 시작점을 계산합니다.
+	center = image_rgb[y_center : y_center + side, x_center : x_center + side]  # 중앙 크롭입니다.
 
-	top_left = image_rgb[0:side, 0:side]
-	top_right = image_rgb[0:side, w - side : w]
-	bottom_left = image_rgb[h - side : h, 0:side]
-	bottom_right = image_rgb[h - side : h, w - side : w]
+	top_left = image_rgb[0:side, 0:side]  # 좌상단 크롭입니다.
+	top_right = image_rgb[0:side, w - side : w]  # 우상단 크롭입니다.
+	bottom_left = image_rgb[h - side : h, 0:side]  # 좌하단 크롭입니다.
+	bottom_right = image_rgb[h - side : h, w - side : w]  # 우하단 크롭입니다.
 
-	return [center, top_left, top_right, bottom_left, bottom_right]
+	return [center, top_left, top_right, bottom_left, bottom_right]  # 5개 크롭을 반환합니다.
 
 
 def build_data_augmentation():
-	return models.Sequential(
+	return models.Sequential(  # 학습 시 데이터 증강을 적용합니다.
 		[
-			layers.RandomFlip("horizontal"),
-			layers.RandomRotation(0.08),
-			layers.RandomZoom(height_factor=0.1, width_factor=0.1),
-			layers.RandomContrast(factor=0.1),
+			layers.RandomFlip("horizontal"),  # 좌우 반전을 적용합니다.
+			layers.RandomRotation(0.08),  # 작은 회전 변형을 줍니다.
+			layers.RandomZoom(height_factor=0.1, width_factor=0.1),  # 확대/축소 변형을 줍니다.
+			layers.RandomContrast(factor=0.1),  # 대비 변형을 줍니다.
 		],
-		name="data_augmentation",
+		name="data_augmentation",  # 증강 레이어 이름입니다.
 	)
 
 
 def build_cnn_model(input_shape=(32, 32, 3), num_classes=10):
-	data_augmentation = build_data_augmentation()
+	data_augmentation = build_data_augmentation()  # 증강 블록을 준비합니다.
 
-	model = models.Sequential(
+	model = models.Sequential(  # CNN 분류 모델을 구성합니다.
 		[
-			layers.Input(shape=input_shape),
-			data_augmentation,
-			layers.Conv2D(32, (3, 3), activation="relu", padding="same"),
-			layers.BatchNormalization(),
-			layers.MaxPooling2D((2, 2)),
-			layers.Conv2D(64, (3, 3), activation="relu", padding="same"),
-			layers.BatchNormalization(),
-			layers.MaxPooling2D((2, 2)),
-			layers.Conv2D(128, (3, 3), activation="relu", padding="same"),
-			layers.BatchNormalization(),
-			layers.MaxPooling2D((2, 2)),
-			layers.Flatten(),
-			layers.Dense(128, activation="relu"),
-			layers.BatchNormalization(),
-			layers.Dropout(0.3),
-			layers.Dense(num_classes, activation="softmax"),
+			layers.Input(shape=input_shape),  # 입력 크기를 정의합니다.
+			data_augmentation,  # 학습 시 증강을 적용합니다.
+			layers.Conv2D(32, (3, 3), activation="relu", padding="same"),  # 첫 번째 합성곱 층입니다.
+			layers.BatchNormalization(),  # 배치 정규화를 적용합니다.
+			layers.MaxPooling2D((2, 2)),  # 공간 크기를 줄입니다.
+			layers.Conv2D(64, (3, 3), activation="relu", padding="same"),  # 두 번째 합성곱 층입니다.
+			layers.BatchNormalization(),  # 배치 정규화를 적용합니다.
+			layers.MaxPooling2D((2, 2)),  # 공간 크기를 다시 줄입니다.
+			layers.Conv2D(128, (3, 3), activation="relu", padding="same"),  # 세 번째 합성곱 층입니다.
+			layers.BatchNormalization(),  # 학습을 안정화합니다.
+			layers.MaxPooling2D((2, 2)),  # 특징맵 크기를 줄입니다.
+			layers.Flatten(),  # 1차원 벡터로 펼칩니다.
+			layers.Dense(128, activation="relu"),  # 완전연결 은닉층입니다.
+			layers.BatchNormalization(),  # 배치 정규화를 적용합니다.
+			layers.Dropout(0.3),  # 과적합을 줄입니다.
+			layers.Dense(num_classes, activation="softmax"),  # 10개 클래스 확률을 출력합니다.
 		]
 	)
 
-	model.compile(
-		optimizer="adam",
-		loss="sparse_categorical_crossentropy",
-		metrics=["accuracy"],
+	model.compile(  # 학습 설정을 컴파일합니다.
+		optimizer="adam",  # Adam 최적화기를 사용합니다.
+		loss="sparse_categorical_crossentropy",  # 다중분류 손실입니다.
+		metrics=["accuracy"],  # 정확도를 함께 봅니다.
 	)
-	return model
+	return model  # 컴파일된 모델을 반환합니다.
 
 
 def predict_single_image(model, image_path):
-	image_bgr = load_image_bgr(image_path)
+	image_bgr = load_image_bgr(image_path)  # 이미지를 불러옵니다.
 	if image_bgr is None:
 		raise FileNotFoundError(f"이미지를 불러올 수 없습니다: {image_path}")
 
-	image_rgb = cv.cvtColor(image_bgr, cv.COLOR_BGR2RGB)
-	square_views = make_square_crop_views(image_rgb)
+	image_rgb = cv.cvtColor(image_bgr, cv.COLOR_BGR2RGB)  # BGR을 RGB로 변환합니다.
+	square_views = make_square_crop_views(image_rgb)  # 여러 크롭 뷰를 만듭니다.
 
-	batch = []
+	batch = []  # 예측용 배치를 준비합니다.
 	for view in square_views:
-		resized = cv.resize(view, (32, 32), interpolation=cv.INTER_AREA)
-		batch.append(resized)
-		batch.append(cv.flip(resized, 1))
+		resized = cv.resize(view, (32, 32), interpolation=cv.INTER_AREA)  # CIFAR-10 크기로 맞춥니다.
+		batch.append(resized)  # 원본 뷰를 추가합니다.
+		batch.append(cv.flip(resized, 1))  # 좌우 반전 뷰를 추가합니다.
 
-	batch_input = np.array(batch, dtype="float32") / 255.0
-	probs_batch = model.predict(batch_input, verbose=0)
-	probs = np.mean(probs_batch, axis=0)
-	pred_idx = int(np.argmax(probs))
-	return pred_idx, probs
+	batch_input = np.array(batch, dtype="float32") / 255.0  # 모델 입력 형태로 변환합니다.
+	probs_batch = model.predict(batch_input, verbose=0)  # 각 뷰의 확률을 예측합니다.
+	probs = np.mean(probs_batch, axis=0)  # 뷰별 확률을 평균냅니다.
+	pred_idx = int(np.argmax(probs))  # 가장 높은 확률의 클래스를 선택합니다.
+	return pred_idx, probs  # 예측 결과를 반환합니다.
 
 
 def main():
-	(x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
-	y_train = y_train.flatten()
-	y_test = y_test.flatten()
+	(x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()  # CIFAR-10을 불러옵니다.
+	y_train = y_train.flatten()  # 라벨을 1차원으로 변환합니다.
+	y_test = y_test.flatten()  # 테스트 라벨도 1차원으로 변환합니다.
 
-	x_train, x_test = preprocess_dataset(x_train, x_test)
+	x_train, x_test = preprocess_dataset(x_train, x_test)  # 데이터 정규화를 수행합니다.
 
-	print(f"Train set: {x_train.shape}, labels: {y_train.shape}")
-	print(f"Test set:  {x_test.shape}, labels: {y_test.shape}")
+	print(f"Train set: {x_train.shape}, labels: {y_train.shape}")  # 훈련 데이터 크기를 출력합니다.
+	print(f"Test set:  {x_test.shape}, labels: {y_test.shape}")  # 테스트 데이터 크기를 출력합니다.
 
-	model = build_cnn_model()
-	model.summary()
+	model = build_cnn_model()  # CNN 모델을 생성합니다.
+	model.summary()  # 모델 구조를 출력합니다.
 
-	early_stop = tf.keras.callbacks.EarlyStopping(
-		monitor="val_accuracy",
-		patience=3,
-		restore_best_weights=True,
+	early_stop = tf.keras.callbacks.EarlyStopping(  # 조기 종료 콜백입니다.
+		monitor="val_accuracy",  # 검증 정확도를 기준으로 봅니다.
+		patience=3,  # 3회 개선이 없으면 종료합니다.
+		restore_best_weights=True,  # 가장 좋은 가중치를 복원합니다.
 	)
 
-	reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(
-		monitor="val_loss",
-		factor=0.5,
-		patience=2,
-		min_lr=1e-5,
-		verbose=1,
+	reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(  # 학습률 감소 콜백입니다.
+		monitor="val_loss",  # 검증 손실을 기준으로 봅니다.
+		factor=0.5,  # 학습률을 절반으로 줄입니다.
+		patience=2,  # 2회 정체 시 감소합니다.
+		min_lr=1e-5,  # 최소 학습률을 제한합니다.
+		verbose=1,  # 변경 로그를 출력합니다.
 	)
 
-	model.fit(
-		x_train,
-		y_train,
-		epochs=15,
-		batch_size=64,
-		validation_split=0.1,
-		callbacks=[early_stop, reduce_lr],
-		verbose=1,
+	model.fit(  # 모델 학습을 시작합니다.
+		x_train,  # 입력 이미지입니다.
+		y_train,  # 정답 라벨입니다.
+		epochs=15,  # 최대 15회 학습합니다.
+		batch_size=64,  # 배치 크기를 설정합니다.
+		validation_split=0.1,  # 검증용 데이터를 분리합니다.
+		callbacks=[early_stop, reduce_lr],  # 학습 안정화 콜백을 사용합니다.
+		verbose=1,  # 학습 로그를 자세히 출력합니다.
 	)
 
-	test_loss, test_accuracy = model.evaluate(x_test, y_test, verbose=0)
-	print(f"\nTest loss: {test_loss:.4f}")
-	print(f"Test accuracy: {test_accuracy:.4f}")
+	test_loss, test_accuracy = model.evaluate(x_test, y_test, verbose=0)  # 테스트셋으로 평가합니다.
+	print(f"\nTest loss: {test_loss:.4f}")  # 테스트 손실을 출력합니다.
+	print(f"Test accuracy: {test_accuracy:.4f}")  # 테스트 정확도를 출력합니다.
 
-	script_dir = os.path.dirname(os.path.abspath(__file__))
-	dog_image_path = os.path.join(script_dir, "dog.jpg")
+	script_dir = os.path.dirname(os.path.abspath(__file__))  # 현재 스크립트 위치를 구합니다.
+	dog_image_path = os.path.join(script_dir, "dog.jpg")  # dog.jpg 경로를 만듭니다.
 
-	pred_idx, probs = predict_single_image(model, dog_image_path)
-	print("\nPrediction for dog.jpg")
-	print(f"Predicted class index: {pred_idx}")
-	print(f"Predicted class name: {CLASS_NAMES[pred_idx]}")
-	print(f"Dog probability: {probs[5]:.4f}")
+	pred_idx, probs = predict_single_image(model, dog_image_path)  # 단일 이미지를 예측합니다.
+	print("\nPrediction for dog.jpg")  # 예측 결과 제목을 출력합니다.
+	print(f"Predicted class index: {pred_idx}")  # 예측 클래스 인덱스를 출력합니다.
+	print(f"Predicted class name: {CLASS_NAMES[pred_idx]}")  # 예측 클래스 이름을 출력합니다.
+	print(f"Dog probability: {probs[5]:.4f}")  # dog 클래스 확률을 출력합니다.
 
-	top3_idx = np.argsort(probs)[-3:][::-1]
-	print("Top-3 probabilities:")
+	top3_idx = np.argsort(probs)[-3:][::-1]  # 상위 3개 클래스를 구합니다.
+	print("Top-3 probabilities:")  # 상위 3개 확률을 출력합니다.
 	for idx in top3_idx:
-		print(f"  {CLASS_NAMES[idx]}: {probs[idx]:.4f}")
+		print(f"  {CLASS_NAMES[idx]}: {probs[idx]:.4f}")  # 각 클래스 확률을 출력합니다.
 
 
 if __name__ == "__main__":

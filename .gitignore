@@ -205,3 +205,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# 6W assignment scripts
+6W/slow_traffic_small.mp4
+6W/yolov3.weights
