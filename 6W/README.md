@@ -711,4 +711,3 @@ python 02.mediapipe_face_landmark_visualization.py
 ### 실행 화면
 
 ![FaceMesh Result](result2.png)
-```
